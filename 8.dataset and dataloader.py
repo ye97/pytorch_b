@@ -1,7 +1,9 @@
 import torch
 import numpy as np
-from torch.utils.data import Dataset
+
 from torch.utils.data import DataLoader
+from torch.utils.data.dataset import Dataset
+
 
 class DiabetesDataset(Dataset):
     def __init__(self,filepath):

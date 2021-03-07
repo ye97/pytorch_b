@@ -8,7 +8,7 @@ import torch.optim as optim
 # prepare dataset
 
 batch_size = 64
-transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])  # 归一化,均值和方差
+transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
 
 train_dataset = datasets.MNIST(root='../dataset/mnist/', train=True, download=True, transform=transform)
 train_loader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
@@ -22,19 +22,20 @@ test_loader = DataLoader(test_dataset, shuffle=False, batch_size=batch_size)
 class Net(torch.nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.l1 = torch.nn.Linear(784, 512)
-        self.l2 = torch.nn.Linear(512, 256)
-        self.l3 = torch.nn.Linear(256, 128)
-        self.l4 = torch.nn.Linear(128, 64)
-        self.l5 = torch.nn.Linear(64, 10)
+        self.conv1 = torch.nn.Conv2d(1, 10, kernel_size=5)
+        self.conv2 = torch.nn.Conv2d(10, 20, kernel_size=5)
+        self.pooling = torch.nn.MaxPool2d(2)
+        self.fc = torch.nn.Linear(320, 10)
 
     def forward(self, x):
-        x = x.view(-1, 784)  # -1其实就是自动获取mini_batch
-        x = F.relu(self.l1(x))
-        x = F.relu(self.l2(x))
-        x = F.relu(self.l3(x))
-        x = F.relu(self.l4(x))
-        return self.l5(x)  # 最后一层不做激活，不进行非线性变换
+        # flatten data from (n,1,28,28) to (n, 784)
+        batch_size = x.size(0)
+        x = F.relu(self.pooling(self.conv1(x)))
+        x = F.relu(self.pooling(self.conv2(x)))
+        x = x.view(batch_size, -1)  # -1 此处自动算出的是320
+        x = self.fc(x)
+
+        return x
 
 
 model = Net()
@@ -50,12 +51,10 @@ optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.5)
 def train(epoch):
     running_loss = 0.0
     for batch_idx, data in enumerate(train_loader, 0):
-        # 获得一个批次的数据和标签
         inputs, target = data
         optimizer.zero_grad()
-        # 获得模型预测结果(64, 10)
+
         outputs = model(inputs)
-        # 交叉熵代价函数outputs(64,10),target（64）
         loss = criterion(outputs, target)
         loss.backward()
         optimizer.step()
@@ -73,9 +72,9 @@ def test():
         for data in test_loader:
             images, labels = data
             outputs = model(images)
-            _, predicted = torch.max(outputs.data, dim=1)  # dim = 1 列是第0个维度，行是第1个维度
+            _, predicted = torch.max(outputs.data, dim=1)
             total += labels.size(0)
-            correct += (predicted == labels).sum().item()  # 张量之间的比较运算
+            correct += (predicted == labels).sum().item()
     print('accuracy on test set: %d %% ' % (100 * correct / total))
 
 
